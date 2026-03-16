@@ -11,6 +11,7 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/students', require('./routes/student.routes'));
 app.use('/api/attendance', require('./routes/attendance.routes'));
+app.use('/api/marks', require('./routes/marks.routes'));
 
 // Health check endpoint
 app.get('/health', async (req, res) => {

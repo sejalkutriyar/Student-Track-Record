@@ -1,5 +1,5 @@
 const pool = require('../config/db');
-
+const { checkAndSendAlerts } = require('../utils/alertService');
 // Mark attendance
 exports.markAttendance = async (req, res) => {
   const { student_id, date, status } = req.body;
@@ -11,7 +11,11 @@ exports.markAttendance = async (req, res) => {
        RETURNING *`,
       [student_id, date, status, req.user.id]
     );
-    res.status(201).json({ message: 'Attendance marked!', attendance: result.rows[0] });
+
+    // Alert check
+    const alertResult = await checkAndSendAlerts(student_id);
+
+    res.status(201).json({ message: 'Attendance marked!', attendance: result.rows[0], alert: alertResult });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
