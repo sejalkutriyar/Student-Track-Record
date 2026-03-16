@@ -28,7 +28,8 @@ const createTables = async () => {
         student_id INT REFERENCES students(id),
         date DATE NOT NULL,
         status VARCHAR(10) CHECK (status IN ('present','absent','holiday')),
-        marked_by INT REFERENCES users(id)
+        marked_by INT REFERENCES users(id),
+        CONSTRAINT attendance_student_date_unique UNIQUE (student_id, date)
       );
 
       CREATE TABLE IF NOT EXISTS marks (
