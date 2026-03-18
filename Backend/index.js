@@ -12,6 +12,7 @@ app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/students', require('./routes/student.routes'));
 app.use('/api/attendance', require('./routes/attendance.routes'));
 app.use('/api/marks', require('./routes/marks.routes'));
+app.use('/api/reports', require('./routes/report.routes'));
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
