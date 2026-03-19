@@ -1,0 +1,76 @@
+.incoming-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.incoming-card {
+  background: #1a1a2e;
+  border-radius: 16px;
+  padding: 40px;
+  text-align: center;
+  color: white;
+  width: 320px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+.incoming-ring {
+  font-size: 56px;
+  margin-bottom: 16px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.incoming-title {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.incoming-caller {
+  font-size: 16px;
+  color: #a0a0c0;
+  margin-bottom: 4px;
+}
+
+.incoming-student {
+  font-size: 13px;
+  color: #667eea;
+  margin-bottom: 28px;
+}
+
+.incoming-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.btn-decline {
+  padding: 12px 28px;
+  background: #e53e3e;
+  color: white;
+  border: none;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-accept {
+  padding: 12px 28px;
+  background: #38a169;
+  color: white;
+  border: none;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}

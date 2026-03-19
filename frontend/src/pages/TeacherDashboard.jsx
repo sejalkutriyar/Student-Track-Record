@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import VideoCall from '../components/VideoCall';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import socket from '../socket';
 import './TeacherDashboard.css';
 
 const API = 'http://localhost:5000/api';
 
 const TeacherDashboard = () => {
   const [students, setStudents] = useState([]);
+  const [activeCall, setActiveCall] = useState(null);
   const [activeTab, setActiveTab] = useState('students');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -15,7 +18,6 @@ const TeacherDashboard = () => {
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
-  // Students fetch
   const fetchStudents = async () => {
     setLoading(true);
     try {
@@ -31,13 +33,45 @@ const TeacherDashboard = () => {
     fetchStudents();
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+
+    socket.connect();
+
+    const onConnect = () => {
+      console.log('Teacher Socket connected:', socket.id);
+      socket.emit('register', user.id);
+    };
+
+    socket.on('connect', onConnect);
+    if (socket.connected) {
+      onConnect();
+    }
+
+    return () => {
+      socket.off('connect', onConnect);
+    };
+  }, []);
+
   const handleLogout = () => {
     localStorage.clear();
+    socket.disconnect();
     navigate('/login');
   };
 
   return (
     <div className="dashboard-container">
+
+      {/* Video Call Modal */}
+      {activeCall && (
+        <VideoCall
+          currentUser={user}
+          isCaller={true}
+          targetUserId={activeCall.userId}
+          targetName={activeCall.name}
+          onClose={() => setActiveCall(null)}
+        />
+      )}
 
       {/* Sidebar */}
       <div className="sidebar">
@@ -56,8 +90,6 @@ const TeacherDashboard = () => {
 
       {/* Main Content */}
       <div className="main-content">
-
-        {/* Header */}
         <div className="dashboard-header">
           <h1 className="page-title">
             {activeTab === 'students' && '👥 Students'}
@@ -67,33 +99,24 @@ const TeacherDashboard = () => {
           </h1>
         </div>
 
-        {/* Students Tab */}
         {activeTab === 'students' && (
-          <StudentsTab students={students} headers={headers} fetchStudents={fetchStudents} />
+          <StudentsTab
+            students={students}
+            headers={headers}
+            fetchStudents={fetchStudents}
+            onCall={(student) => setActiveCall({ userId: student.parent_id, name: student.name })}
+          />
         )}
-
-        {/* Attendance Tab */}
-        {activeTab === 'attendance' && (
-          <AttendanceTab students={students} headers={headers} />
-        )}
-
-        {/* Marks Tab */}
-        {activeTab === 'marks' && (
-          <MarksTab students={students} headers={headers} />
-        )}
-
-        {/* Reports Tab */}
-        {activeTab === 'reports' && (
-          <ReportsTab students={students} token={token} />
-        )}
-
+        {activeTab === 'attendance' && <AttendanceTab students={students} headers={headers} />}
+        {activeTab === 'marks' && <MarksTab students={students} headers={headers} />}
+        {activeTab === 'reports' && <ReportsTab students={students} token={token} />}
       </div>
     </div>
   );
 };
 
 // ── Students Tab ──
-const StudentsTab = ({ students, headers, fetchStudents }) => {
+const StudentsTab = ({ students, headers, fetchStudents, onCall }) => {
   const [form, setForm] = useState({ name: '', roll_number: '', class: '', section: '', dob: '', parent_id: '' });
   const [showForm, setShowForm] = useState(false);
 
@@ -129,12 +152,12 @@ const StudentsTab = ({ students, headers, fetchStudents }) => {
         <form className="form-card" onSubmit={handleAdd}>
           <h3>Add New Student</h3>
           <div className="form-grid">
-            <input placeholder="Full Name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} required />
-            <input placeholder="Roll Number" value={form.roll_number} onChange={e => setForm({...form, roll_number: e.target.value})} required />
-            <input placeholder="Class (e.g. 10)" value={form.class} onChange={e => setForm({...form, class: e.target.value})} />
-            <input placeholder="Section (e.g. A)" value={form.section} onChange={e => setForm({...form, section: e.target.value})} />
-            <input type="date" placeholder="Date of Birth" value={form.dob} onChange={e => setForm({...form, dob: e.target.value})} />
-            <input placeholder="Parent ID" value={form.parent_id} onChange={e => setForm({...form, parent_id: e.target.value})} />
+            <input placeholder="Full Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+            <input placeholder="Roll Number" value={form.roll_number} onChange={e => setForm({ ...form, roll_number: e.target.value })} required />
+            <input placeholder="Class (e.g. 10)" value={form.class} onChange={e => setForm({ ...form, class: e.target.value })} />
+            <input placeholder="Section (e.g. A)" value={form.section} onChange={e => setForm({ ...form, section: e.target.value })} />
+            <input type="date" value={form.dob} onChange={e => setForm({ ...form, dob: e.target.value })} />
+            <input placeholder="Parent ID" value={form.parent_id} onChange={e => setForm({ ...form, parent_id: e.target.value })} />
           </div>
           <button type="submit" className="btn-primary">Save Student</button>
         </form>
@@ -154,7 +177,13 @@ const StudentsTab = ({ students, headers, fetchStudents }) => {
                 <td>{s.roll_number}</td>
                 <td>{s.class}</td>
                 <td>{s.section}</td>
-                <td>
+                <td style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    className="btn-call btn-sm"
+                    onClick={() => onCall(s)}
+                  >
+                    📹 Call
+                  </button>
                   <button className="btn-danger btn-sm" onClick={() => handleDelete(s.id)}>Delete</button>
                 </td>
               </tr>
@@ -198,9 +227,7 @@ const AttendanceTab = ({ students, headers }) => {
         <input type="date" value={date} onChange={e => setDate(e.target.value)} className="date-input" />
         <button className="btn-primary" onClick={handleSubmit}>Submit Attendance</button>
       </div>
-
       {message && <div className="alert-msg">{message}</div>}
-
       <div className="table-card">
         <table className="data-table">
           <thead>
@@ -213,12 +240,8 @@ const AttendanceTab = ({ students, headers }) => {
                 <td>{s.roll_number}</td>
                 <td>
                   <div className="attendance-btns">
-                    <button
-                      className={attendance[s.id] === 'present' ? 'btn-present active' : 'btn-present'}
-                      onClick={() => handleMark(s.id, 'present')}>Present</button>
-                    <button
-                      className={attendance[s.id] === 'absent' ? 'btn-absent active' : 'btn-absent'}
-                      onClick={() => handleMark(s.id, 'absent')}>Absent</button>
+                    <button className={attendance[s.id] === 'present' ? 'btn-present active' : 'btn-present'} onClick={() => handleMark(s.id, 'present')}>Present</button>
+                    <button className={attendance[s.id] === 'absent' ? 'btn-absent active' : 'btn-absent'} onClick={() => handleMark(s.id, 'absent')}>Absent</button>
                   </div>
                 </td>
               </tr>
@@ -253,18 +276,18 @@ const MarksTab = ({ students, headers }) => {
         <h3>Enter Marks</h3>
         {message && <div className="alert-msg">{message}</div>}
         <div className="form-grid">
-          <select value={form.student_id} onChange={e => setForm({...form, student_id: e.target.value})} required>
+          <select value={form.student_id} onChange={e => setForm({ ...form, student_id: e.target.value })} required>
             <option value="">Select Student</option>
             {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <input placeholder="Subject" value={form.subject} onChange={e => setForm({...form, subject: e.target.value})} required />
-          <select value={form.exam_type} onChange={e => setForm({...form, exam_type: e.target.value})}>
+          <input placeholder="Subject" value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} required />
+          <select value={form.exam_type} onChange={e => setForm({ ...form, exam_type: e.target.value })}>
             <option value="midterm">Mid Term</option>
             <option value="final">Final</option>
             <option value="unit">Unit Test</option>
           </select>
-          <input type="number" placeholder="Marks Obtained" value={form.marks_obtained} onChange={e => setForm({...form, marks_obtained: e.target.value})} required />
-          <input type="number" placeholder="Max Marks" value={form.max_marks} onChange={e => setForm({...form, max_marks: e.target.value})} required />
+          <input type="number" placeholder="Marks Obtained" value={form.marks_obtained} onChange={e => setForm({ ...form, marks_obtained: e.target.value })} required />
+          <input type="number" placeholder="Max Marks" value={form.max_marks} onChange={e => setForm({ ...form, max_marks: e.target.value })} required />
         </div>
         <button type="submit" className="btn-primary">Add Marks</button>
       </form>

@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import socket from '../socket';
+import IncomingCall from '../components/IncomingCall';
+import VideoCall from '../components/VideoCall';
 import './ParentDashboard.css';
 
 const API = 'http://localhost:5000/api';
@@ -12,13 +15,14 @@ const ParentDashboard = () => {
   const [marks, setMarks] = useState([]);
   const [gpa, setGpa] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [activeCall, setActiveCall] = useState(null);
   const navigate = useNavigate();
 
   const user = JSON.parse(localStorage.getItem('user'));
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
-  // Fetch students linked to this parent
   const fetchStudents = async () => {
     try {
       const res = await axios.get(`${API}/students`, { headers });
@@ -35,19 +39,24 @@ const ParentDashboard = () => {
 
   const fetchStudentData = async (studentId) => {
     try {
-      // Attendance
       const attRes = await axios.get(`${API}/attendance/${studentId}/percentage`, { headers });
       setAttendance(attRes.data);
+    } catch (err) {
+      console.log('Attendance not found');
+    }
 
-      // Marks
+    try {
       const marksRes = await axios.get(`${API}/marks/${studentId}`, { headers });
       setMarks(marksRes.data);
+    } catch (err) {
+      console.log('Marks not found');
+    }
 
-      // GPA
+    try {
       const gpaRes = await axios.get(`${API}/marks/${studentId}/gpa?exam_type=midterm`, { headers });
       setGpa(gpaRes.data);
     } catch (err) {
-      console.error(err);
+      console.log('GPA not found');
     }
   };
 
@@ -55,8 +64,52 @@ const ParentDashboard = () => {
     fetchStudents();
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+
+    socket.connect();
+
+    const onConnect = () => {
+      console.log('Parent Socket connected:', socket.id);
+      socket.emit('register', user.id);
+    };
+
+    socket.on('connect', onConnect);
+    if (socket.connected) {
+      onConnect();
+    }
+
+    const onCallIncoming = ({ fromSocketId, fromName, studentName }) => {
+      console.log('Incoming call from:', fromName);
+      setIncomingCall({ fromSocketId, fromName, studentName });
+    };
+
+    socket.on('call:incoming', onCallIncoming);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('call:incoming', onCallIncoming);
+    };
+  }, []);
+
+  // ✅ FIXED — sirf state set karo, JSX yahan nahi
+  const handleAccept = () => {
+    setActiveCall({
+      fromSocketId: incomingCall.fromSocketId,
+      fromName: incomingCall.fromName,
+      studentName: incomingCall.studentName
+    });
+    setIncomingCall(null);
+  };
+
+  const handleDecline = () => {
+    socket.emit('call:declined', { toSocketId: incomingCall.fromSocketId });
+    setIncomingCall(null);
+  };
+
   const handleLogout = () => {
     localStorage.clear();
+    socket.disconnect();
     navigate('/login');
   };
 
@@ -85,6 +138,27 @@ const ParentDashboard = () => {
   return (
     <div className="parent-container">
 
+      {/* ✅ VideoCall — accept ke baad dikhega */}
+      {activeCall && (
+        <VideoCall
+          currentUser={user}
+          isCaller={false}
+          peerSocketId={activeCall.fromSocketId}
+          targetName={activeCall.fromName}
+          onClose={() => setActiveCall(null)}
+        />
+      )}
+
+      {/* Incoming Call Popup */}
+      {incomingCall && (
+        <IncomingCall
+          callerName={incomingCall.fromName}
+          studentName={incomingCall.studentName}
+          onAccept={handleAccept}
+          onDecline={handleDecline}
+        />
+      )}
+
       {/* Sidebar */}
       <div className="parent-sidebar">
         <div className="sidebar-logo">📚 EduTrack</div>
@@ -103,7 +177,6 @@ const ParentDashboard = () => {
       {/* Main Content */}
       <div className="parent-main">
 
-        {/* Header */}
         <div className="parent-header">
           <h1 className="page-title">
             {activeTab === 'overview' && '🏠 Overview'}
@@ -118,14 +191,12 @@ const ParentDashboard = () => {
           )}
         </div>
 
-        {/* No student found */}
         {students.length === 0 && (
           <div className="empty-state">
             <p>No students linked to your account.</p>
           </div>
         )}
 
-        {/* Overview Tab */}
         {activeTab === 'overview' && selectedStudent && (
           <div>
             <div className="stats-grid">
@@ -139,33 +210,28 @@ const ParentDashboard = () => {
                   <div className="alert-badge">⚠ Below 75%</div>
                 )}
               </div>
-
               <div className="stat-card">
                 <div className="stat-label">GPA</div>
                 <div className="stat-value">{gpa?.gpa || 'N/A'}</div>
                 <div className="stat-sub">Grade: {gpa?.grade || 'N/A'}</div>
               </div>
-
               <div className="stat-card">
                 <div className="stat-label">Overall %</div>
                 <div className="stat-value">{gpa?.overall_percentage || 'N/A'}%</div>
                 <div className="stat-sub">Mid Term</div>
               </div>
-
               <div className="stat-card">
                 <div className="stat-label">Subjects</div>
                 <div className="stat-value">{marks.length}</div>
                 <div className="stat-sub">Total subjects</div>
               </div>
             </div>
-
             <button className="btn-primary" onClick={handleDownloadReport}>
               📄 Download Report Card
             </button>
           </div>
         )}
 
-        {/* Attendance Tab */}
         {activeTab === 'attendance' && (
           <div className="info-card">
             <h3>Attendance Summary</h3>
@@ -193,13 +259,12 @@ const ParentDashboard = () => {
             </div>
             {attendance?.percentage < 75 && (
               <div className="warning-box">
-                ⚠️ Attendance is below 75%. Please ensure regular attendance to avoid academic issues.
+                ⚠️ Attendance is below 75%. Please ensure regular attendance.
               </div>
             )}
           </div>
         )}
 
-        {/* Marks Tab */}
         {activeTab === 'marks' && (
           <div className="info-card">
             <h3>Subject-wise Marks</h3>
@@ -229,13 +294,12 @@ const ParentDashboard = () => {
           </div>
         )}
 
-        {/* Report Tab */}
         {activeTab === 'report' && (
           <div className="info-card" style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '64px', marginBottom: '16px' }}>📄</div>
             <h3>Report Card</h3>
             <p style={{ color: '#888', marginBottom: '24px' }}>
-              Download {selectedStudent?.name}'s complete report card with grades, attendance and remarks.
+              Download {selectedStudent?.name}'s complete report card.
             </p>
             <button className="btn-primary" onClick={handleDownloadReport}>
               ⬇ Download PDF Report Card
