@@ -23,6 +23,7 @@ app.use('/api/students', require('./routes/student.routes'));
 app.use('/api/attendance', require('./routes/attendance.routes'));
 app.use('/api/marks', require('./routes/marks.routes'));
 app.use('/api/reports', require('./routes/report.routes'));
+app.use('/api/remarks', require('./routes/remarks.routes'));
 
 app.get('/health', async (req, res) => {
   try {

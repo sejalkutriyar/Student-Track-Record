@@ -42,6 +42,15 @@ const createTables = async () => {
         entered_by INT REFERENCES users(id),
         created_at TIMESTAMP DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS remarks (
+        id SERIAL PRIMARY KEY,
+        student_id INT REFERENCES students(id) ON DELETE CASCADE,
+        teacher_id INT REFERENCES users(id),
+        remark_text TEXT NOT NULL,
+        remark_type VARCHAR(20) CHECK (remark_type IN ('behavioral', 'academic', 'achievement')),
+        created_at TIMESTAMP DEFAULT NOW()
+      );
     `);
     console.log('✅ All tables created!');
     process.exit();

@@ -81,6 +81,7 @@ const TeacherDashboard = () => {
           <button className={activeTab === 'attendance' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('attendance')}>📋 Attendance</button>
           <button className={activeTab === 'marks' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('marks')}>📊 Marks</button>
           <button className={activeTab === 'reports' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('reports')}>📄 Reports</button>
+          <button className={activeTab === 'remarks' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('remarks')}>📝 Remarks</button>
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">🧑‍🏫 {user?.name}</div>
@@ -96,6 +97,7 @@ const TeacherDashboard = () => {
             {activeTab === 'attendance' && '📋 Attendance'}
             {activeTab === 'marks' && '📊 Marks'}
             {activeTab === 'reports' && '📄 Reports'}
+            {activeTab === 'remarks' && '📝 Remarks'}
           </h1>
         </div>
 
@@ -110,6 +112,7 @@ const TeacherDashboard = () => {
         {activeTab === 'attendance' && <AttendanceTab students={students} headers={headers} />}
         {activeTab === 'marks' && <MarksTab students={students} headers={headers} />}
         {activeTab === 'reports' && <ReportsTab students={students} token={token} />}
+        {activeTab === 'remarks' && <RemarksTab students={students} headers={headers} />}
       </div>
     </div>
   );
@@ -335,6 +338,147 @@ const ReportsTab = ({ students, token }) => {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+};
+
+// ── Remarks Tab ──
+const RemarksTab = ({ students, headers }) => {
+  const [form, setForm] = useState({
+    student_id: '',
+    remark_text: '',
+    remark_type: 'academic'
+  });
+  const [remarks, setRemarks] = useState([]);
+  const [message, setMessage] = useState('');
+
+  const fetchRemarks = async (studentId) => {
+    if (!studentId) return;
+    try {
+      const res = await axios.get(
+        `http://localhost:5000/api/remarks/${studentId}`,
+        { headers }
+      );
+      setRemarks(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post('http://localhost:5000/api/remarks', form, { headers });
+      setMessage('✅ Remark added!');
+      fetchRemarks(form.student_id);
+      setTimeout(() => setMessage(''), 3000);
+      setForm({ ...form, remark_text: '' });
+    } catch (err) {
+      setMessage('❌ Error adding remark');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`http://localhost:5000/api/remarks/${id}`, { headers });
+      setRemarks(remarks.filter(r => r.id !== id));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  return (
+    <div>
+      <form className="form-card" onSubmit={handleSubmit}>
+        <h3>Add Remark</h3>
+        {message && <div className="alert-msg">{message}</div>}
+        <div className="form-grid">
+          <select
+            value={form.student_id}
+            onChange={e => {
+              setForm({ ...form, student_id: e.target.value });
+              fetchRemarks(e.target.value);
+            }}
+            required
+          >
+            <option value="">Select Student</option>
+            {students.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+          <select
+            value={form.remark_type}
+            onChange={e => setForm({ ...form, remark_type: e.target.value })}
+          >
+            <option value="academic">📚 Academic</option>
+            <option value="behavioral">⚠️ Behavioral</option>
+            <option value="achievement">🏆 Achievement</option>
+          </select>
+        </div>
+        <textarea
+          placeholder="Write remark here..."
+          value={form.remark_text}
+          onChange={e => setForm({ ...form, remark_text: e.target.value })}
+          required
+          style={{
+            width: '100%',
+            padding: '10px 14px',
+            border: '1.5px solid #e0e0e0',
+            borderRadius: '8px',
+            fontSize: '14px',
+            minHeight: '100px',
+            marginBottom: '12px',
+            fontFamily: 'inherit',
+            resize: 'vertical'
+          }}
+        />
+        <button type="submit" className="btn-primary">Add Remark</button>
+      </form>
+
+      {remarks.length > 0 && (
+        <div className="table-card">
+          <h3 style={{ marginBottom: '16px' }}>Previous Remarks</h3>
+          {remarks.map(r => (
+            <div key={r.id} style={{
+              padding: '14px 16px',
+              borderBottom: '1px solid #f0f0f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start'
+            }}>
+              <div>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
+                  <span style={{
+                    fontSize: '11px',
+                    padding: '2px 10px',
+                    borderRadius: '20px',
+                    background: r.remark_type === 'achievement' ? '#e6f7ef' :
+                                r.remark_type === 'behavioral' ? '#fff0f0' : '#e8f4ff',
+                    color: r.remark_type === 'achievement' ? '#38a169' :
+                           r.remark_type === 'behavioral' ? '#e53e3e' : '#667eea'
+                  }}>
+                    {r.remark_type === 'achievement' ? '🏆' :
+                     r.remark_type === 'behavioral' ? '⚠️' : '📚'} {r.remark_type}
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#888' }}>
+                    {new Date(r.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <div style={{ fontSize: '14px', color: '#333' }}>{r.remark_text}</div>
+                <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
+                  By: {r.teacher_name}
+                </div>
+              </div>
+              <button
+                className="btn-danger btn-sm"
+                onClick={() => handleDelete(r.id)}
+              >
+                Delete
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
