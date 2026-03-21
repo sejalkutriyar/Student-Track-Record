@@ -26,7 +26,11 @@ const Login = () => {
       if (res.data.user.role === 'teacher') navigate('/teacher');
       else if (res.data.user.role === 'parent') navigate('/parent');
     } catch (err) {
-      setError('Invalid email or password!');
+      if (err.response && err.response.data && err.response.data.error) {
+        setError(err.response.data.error);
+      } else {
+        setError('Invalid email or password! Or Server Error');
+      }
     }
     setLoading(false);
   };
