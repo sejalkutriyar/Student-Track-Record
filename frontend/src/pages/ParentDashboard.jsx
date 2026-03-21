@@ -6,7 +6,7 @@ import IncomingCall from '../components/IncomingCall';
 import VideoCall from '../components/VideoCall';
 import './ParentDashboard.css';
 
-const API = 'http://localhost:5000/api';
+const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const ParentDashboard = () => {
   const [students, setStudents] = useState([]);

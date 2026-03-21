@@ -8,7 +8,7 @@ import { Bar, Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
 ChartJS.register( CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend );
 
-const API = 'http://localhost:5000/api';
+const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const TeacherDashboard = () => {
   const [students, setStudents] = useState([]);
@@ -132,7 +132,7 @@ const StudentsTab = ({ students, headers, fetchStudents, onCall }) => {
   const handleAdd = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/students', form, { headers });
+      await axios.post(`${API}/students`, form, { headers });
       fetchStudents();
       setShowForm(false);
       setForm({ name: '', roll_number: '', class: '', section: '', dob: '', parent_id: '' });
@@ -144,7 +144,7 @@ const StudentsTab = ({ students, headers, fetchStudents, onCall }) => {
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this student?')) return;
     try {
-      await axios.delete(`http://localhost:5000/api/students/${id}`, { headers });
+      await axios.delete(`${API}/students/${id}`, { headers });
       fetchStudents();
     } catch (err) {
       alert('Error deleting student');
@@ -217,7 +217,7 @@ const AttendanceTab = ({ students, headers }) => {
   const handleSubmit = async () => {
     try {
       for (const [student_id, status] of Object.entries(attendance)) {
-        await axios.post('http://localhost:5000/api/attendance',
+        await axios.post(`${API}/attendance`,
           { student_id: parseInt(student_id), date, status },
           { headers }
         );
@@ -270,7 +270,7 @@ const MarksTab = ({ students, headers }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/marks', form, { headers });
+      await axios.post(`${API}/marks`, form, { headers });
       setMessage('✅ Marks added successfully!');
       setTimeout(() => setMessage(''), 3000);
       setForm({ student_id: '', subject: '', exam_type: 'midterm', marks_obtained: '', max_marks: 100 });
@@ -308,7 +308,7 @@ const MarksTab = ({ students, headers }) => {
 const ReportsTab = ({ students, token }) => {
   const handleDownload = async (studentId, studentName) => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/reports/${studentId}`, {
+      const res = await axios.get(`${API}/reports/${studentId}`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });
@@ -362,7 +362,7 @@ const RemarksTab = ({ students, headers }) => {
     if (!studentId) return;
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/remarks/${studentId}`,
+        `${API}/remarks/${studentId}`,
         { headers }
       );
       setRemarks(res.data);
@@ -374,7 +374,7 @@ const RemarksTab = ({ students, headers }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/remarks', form, { headers });
+      await axios.post(`${API}/remarks`, form, { headers });
       setMessage('✅ Remark added!');
       fetchRemarks(form.student_id);
       setTimeout(() => setMessage(''), 3000);
@@ -386,7 +386,7 @@ const RemarksTab = ({ students, headers }) => {
 
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/remarks/${id}`, { headers });
+      await axios.delete(`${API}/remarks/${id}`, { headers });
       setRemarks(remarks.filter(r => r.id !== id));
     } catch (err) {
       console.error(err);
@@ -501,13 +501,13 @@ const ChartsTab = ({ students, headers }) => {
     setLoading(true);
     try {
       const marksRes = await axios.get(
-        `http://localhost:5000/api/marks/${studentId}`,
+        `${API}/marks/${studentId}`,
         { headers }
       );
       setMarksData(marksRes.data);
 
       const attRes = await axios.get(
-        `http://localhost:5000/api/attendance/${studentId}/percentage`,
+        `${API}/attendance/${studentId}/percentage`,
         { headers }
       );
       setAttendanceData(attRes.data);
