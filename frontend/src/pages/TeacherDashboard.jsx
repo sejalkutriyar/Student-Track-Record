@@ -128,10 +128,27 @@ const TeacherDashboard = () => {
 const StudentsTab = ({ students, headers, fetchStudents, onCall }) => {
   const [form, setForm] = useState({ name: '', roll_number: '', class: '', section: '', dob: '', parent_id: '' });
   const [showForm, setShowForm] = useState(false);
+  const [parents, setParents] = useState([]);
+
+  useEffect(() => {
+    const fetchParents = async () => {
+      try {
+        const res = await axios.get(`${API}/students/parents`, { headers });
+        setParents(res.data);
+      } catch (err) {
+        console.error('Failed to fetch parents:', err);
+      }
+    };
+    fetchParents();
+  }, [headers]);
 
   const handleAdd = async (e) => {
     e.preventDefault();
     try {
+      if (!form.parent_id) {
+         alert("Please select a parent!");
+         return;
+      }
       await axios.post(`${API}/students`, form, { headers });
       fetchStudents();
       setShowForm(false);
@@ -166,7 +183,25 @@ const StudentsTab = ({ students, headers, fetchStudents, onCall }) => {
             <input placeholder="Class (e.g. 10)" value={form.class} onChange={e => setForm({ ...form, class: e.target.value })} />
             <input placeholder="Section (e.g. A)" value={form.section} onChange={e => setForm({ ...form, section: e.target.value })} />
             <input type="date" value={form.dob} onChange={e => setForm({ ...form, dob: e.target.value })} />
-            <input placeholder="Parent ID" value={form.parent_id} onChange={e => setForm({ ...form, parent_id: e.target.value })} />
+            <select 
+              value={form.parent_id} 
+              onChange={e => setForm({ ...form, parent_id: e.target.value })}
+              required
+              style={{
+                padding: '10px 14px',
+                border: '1.5px solid #e0e0e0',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                outline: 'none',
+                backgroundColor: '#fff'
+              }}
+            >
+              <option value="">-- Choose Parent --</option>
+              {parents.map(p => (
+                <option key={p.id} value={p.id}>{p.name} ({p.email})</option>
+              ))}
+            </select>
           </div>
           <button type="submit" className="btn-primary">Save Student</button>
         </form>

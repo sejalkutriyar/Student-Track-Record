@@ -12,6 +12,18 @@ exports.getAllStudents = async (req, res) => {
   }
 };
 
+// Get all parents
+exports.getAllParents = async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, name, email FROM users WHERE role = 'parent' ORDER BY name ASC"
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Get single student
 exports.getStudentById = async (req, res) => {
   try {
