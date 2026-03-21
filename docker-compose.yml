@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: edutrack_db
+    environment:
+      POSTGRES_DB: edutrack
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Sejal800
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./Backend
+    container_name: edutrack_backend
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: edutrack
+      DB_USER: postgres
+      DB_PASSWORD: Sejal800
+      JWT_SECRET: sejal_edutrack_secret_key_2024
+      NODE_ENV: production
+      EMAIL_USER: seju020322@gmail.com
+      EMAIL_PASS: hglqboveoxbxecsy
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    container_name: edutrack_frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

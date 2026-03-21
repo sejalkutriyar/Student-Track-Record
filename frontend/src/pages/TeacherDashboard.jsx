@@ -4,6 +4,9 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import socket from '../socket';
 import './TeacherDashboard.css';
+import { Bar, Doughnut } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
+ChartJS.register( CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend );
 
 const API = 'http://localhost:5000/api';
 
@@ -82,6 +85,7 @@ const TeacherDashboard = () => {
           <button className={activeTab === 'marks' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('marks')}>📊 Marks</button>
           <button className={activeTab === 'reports' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('reports')}>📄 Reports</button>
           <button className={activeTab === 'remarks' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('remarks')}>📝 Remarks</button>
+          <button className={activeTab === 'charts' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('charts')}>📊 Charts</button>
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">🧑‍🏫 {user?.name}</div>
@@ -98,6 +102,7 @@ const TeacherDashboard = () => {
             {activeTab === 'marks' && '📊 Marks'}
             {activeTab === 'reports' && '📄 Reports'}
             {activeTab === 'remarks' && '📝 Remarks'}
+            {activeTab === 'charts' && '📊 Performance Charts'}
           </h1>
         </div>
 
@@ -113,6 +118,7 @@ const TeacherDashboard = () => {
         {activeTab === 'marks' && <MarksTab students={students} headers={headers} />}
         {activeTab === 'reports' && <ReportsTab students={students} token={token} />}
         {activeTab === 'remarks' && <RemarksTab students={students} headers={headers} />}
+        {activeTab === 'charts' && <ChartsTab students={students} headers={headers} />}
       </div>
     </div>
   );
@@ -477,6 +483,207 @@ const RemarksTab = ({ students, headers }) => {
               </button>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Charts Tab ──
+const ChartsTab = ({ students, headers }) => {
+  const [selectedStudent, setSelectedStudent] = useState('');
+  const [marksData, setMarksData] = useState([]);
+  const [attendanceData, setAttendanceData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchChartData = async (studentId) => {
+    if (!studentId) return;
+    setLoading(true);
+    try {
+      const marksRes = await axios.get(
+        `http://localhost:5000/api/marks/${studentId}`,
+        { headers }
+      );
+      setMarksData(marksRes.data);
+
+      const attRes = await axios.get(
+        `http://localhost:5000/api/attendance/${studentId}/percentage`,
+        { headers }
+      );
+      setAttendanceData(attRes.data);
+    } catch (err) {
+      console.error(err);
+    }
+    setLoading(false);
+  };
+
+  const marksChartData = {
+    labels: marksData.map(m => m.subject),
+    datasets: [{
+      label: 'Marks Obtained',
+      data: marksData.map(m => m.marks_obtained),
+      backgroundColor: marksData.map(m => {
+        const pct = (m.marks_obtained / m.max_marks) * 100;
+        if (pct >= 75) return 'rgba(56, 161, 105, 0.7)';
+        if (pct >= 50) return 'rgba(102, 126, 234, 0.7)';
+        return 'rgba(229, 62, 62, 0.7)';
+      }),
+      borderColor: marksData.map(m => {
+        const pct = (m.marks_obtained / m.max_marks) * 100;
+        if (pct >= 75) return '#38a169';
+        if (pct >= 50) return '#667eea';
+        return '#e53e3e';
+      }),
+      borderWidth: 2,
+      borderRadius: 6,
+    }]
+  };
+
+  const attendanceChartData = {
+    labels: ['Present', 'Absent'],
+    datasets: [{
+      data: [
+        attendanceData?.present_days || 0,
+        (attendanceData?.total_days - attendanceData?.present_days) || 0
+      ],
+      backgroundColor: ['rgba(56, 161, 105, 0.7)', 'rgba(229, 62, 62, 0.7)'],
+      borderColor: ['#38a169', '#e53e3e'],
+      borderWidth: 2,
+    }]
+  };
+
+  return (
+    <div>
+      {/* Student selector */}
+      <div className="form-card" style={{ marginBottom: '20px' }}>
+        <select
+          value={selectedStudent}
+          onChange={e => {
+            setSelectedStudent(e.target.value);
+            fetchChartData(e.target.value);
+          }}
+          style={{
+            padding: '10px 14px',
+            border: '1.5px solid #e0e0e0',
+            borderRadius: '8px',
+            fontSize: '14px',
+            width: '300px'
+          }}
+        >
+          <option value="">Select Student to view charts</option>
+          {students.map(s => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {loading && <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>Loading charts...</div>}
+
+      {selectedStudent && !loading && (
+        <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+
+          {/* Marks Bar Chart */}
+          <div className="table-card">
+            <h3 style={{ marginBottom: '16px', fontSize: '16px' }}>📊 Subject-wise Marks</h3>
+            {marksData.length > 0 ? (
+              <Bar
+                data={marksChartData}
+                options={{
+                  responsive: true,
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      callbacks: {
+                        label: (ctx) => `${ctx.raw} / ${marksData[ctx.dataIndex]?.max_marks}`
+                      }
+                    }
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      max: 100,
+                      grid: { color: '#f0f0f0' }
+                    },
+                    x: { grid: { display: false } }
+                  }
+                }}
+              />
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>No marks data</div>
+            )}
+          </div>
+
+          {/* Attendance Doughnut Chart */}
+          <div className="table-card">
+            <h3 style={{ marginBottom: '16px', fontSize: '16px' }}>📋 Attendance Overview</h3>
+            {attendanceData?.total_days > 0 ? (
+              <div style={{ maxWidth: '250px', margin: '0 auto' }}>
+                <Doughnut
+                  data={attendanceChartData}
+                  options={{
+                    responsive: true,
+                    plugins: {
+                      legend: { position: 'bottom' },
+                      tooltip: {
+                        callbacks: {
+                          label: (ctx) => `${ctx.label}: ${ctx.raw} days`
+                        }
+                      }
+                    }
+                  }}
+                />
+                <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '18px', fontWeight: '700', color: attendanceData?.percentage >= 75 ? '#38a169' : '#e53e3e' }}>
+                  {attendanceData?.percentage}% Attendance
+                </div>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>No attendance data</div>
+            )}
+          </div>
+
+          {/* Marks Summary Table */}
+          {marksData.length > 0 && (
+            <div className="table-card" style={{ gridColumn: '1 / -1' }}>
+              <h3 style={{ marginBottom: '16px', fontSize: '16px' }}>📈 Performance Summary</h3>
+              <table className="data-table">
+                <thead>
+                  <tr><th>Subject</th><th>Marks</th><th>Max</th><th>Percentage</th><th>Grade</th></tr>
+                </thead>
+                <tbody>
+                  {marksData.map((m, i) => {
+                    const pct = ((m.marks_obtained / m.max_marks) * 100).toFixed(1);
+                    const grade = pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B+' : pct >= 60 ? 'B' : pct >= 50 ? 'C' : 'D';
+                    return (
+                      <tr key={i}>
+                        <td>{m.subject}</td>
+                        <td>{m.marks_obtained}</td>
+                        <td>{m.max_marks}</td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ flex: 1, height: '6px', background: '#f0f0f0', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div style={{ width: `${pct}%`, height: '100%', background: pct >= 75 ? '#38a169' : pct >= 50 ? '#667eea' : '#e53e3e', borderRadius: '3px' }} />
+                            </div>
+                            <span style={{ fontSize: '12px', color: '#555' }}>{pct}%</span>
+                          </div>
+                        </td>
+                        <td>
+                          <span style={{
+                            padding: '3px 10px',
+                            borderRadius: '20px',
+                            fontSize: '12px',
+                            background: grade === 'A+' || grade === 'A' ? '#e6f7ef' : grade === 'B+' || grade === 'B' ? '#e8f4ff' : '#fff0f0',
+                            color: grade === 'A+' || grade === 'A' ? '#38a169' : grade === 'B+' || grade === 'B' ? '#667eea' : '#e53e3e'
+                          }}>
+                            {grade}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
