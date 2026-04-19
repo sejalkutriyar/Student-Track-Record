@@ -106,19 +106,29 @@ const TeacherDashboard = () => {
           </h1>
         </div>
 
-        {activeTab === 'students' && (
+        <div style={{ display: activeTab === 'students' ? 'block' : 'none' }}>
           <StudentsTab
             students={students}
             headers={headers}
             fetchStudents={fetchStudents}
             onCall={(student) => setActiveCall({ userId: student.parent_id, name: student.name })}
           />
-        )}
-        {activeTab === 'attendance' && <AttendanceTab students={students} headers={headers} />}
-        {activeTab === 'marks' && <MarksTab students={students} headers={headers} />}
-        {activeTab === 'reports' && <ReportsTab students={students} token={token} />}
-        {activeTab === 'remarks' && <RemarksTab students={students} headers={headers} />}
-        {activeTab === 'charts' && <ChartsTab students={students} headers={headers} />}
+        </div>
+        <div style={{ display: activeTab === 'attendance' ? 'block' : 'none' }}>
+          <AttendanceTab students={students} headers={headers} />
+        </div>
+        <div style={{ display: activeTab === 'marks' ? 'block' : 'none' }}>
+          <MarksTab students={students} headers={headers} />
+        </div>
+        <div style={{ display: activeTab === 'reports' ? 'block' : 'none' }}>
+          <ReportsTab students={students} token={token} />
+        </div>
+        <div style={{ display: activeTab === 'remarks' ? 'block' : 'none' }}>
+          <RemarksTab students={students} headers={headers} />
+        </div>
+        <div style={{ display: activeTab === 'charts' ? 'block' : 'none' }}>
+          <ChartsTab students={students} headers={headers} />
+        </div>
       </div>
     </div>
   );
@@ -128,6 +138,8 @@ const TeacherDashboard = () => {
 const StudentsTab = ({ students, headers, fetchStudents, onCall }) => {
   const [form, setForm] = useState({ name: '', roll_number: '', class: '', section: '', dob: '', parent_id: '' });
   const [showForm, setShowForm] = useState(false);
+  const [showCSVForm, setShowCSVForm] = useState(false);
+  const [csvFile, setCsvFile] = useState(null);
   const [parents, setParents] = useState([]);
 
   useEffect(() => {
@@ -164,15 +176,45 @@ const StudentsTab = ({ students, headers, fetchStudents, onCall }) => {
       await axios.delete(`${API}/students/${id}`, { headers });
       fetchStudents();
     } catch (err) {
-      alert('Error deleting student');
+      alert('Error deleting student: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const handleCSVUpload = async (e) => {
+    e.preventDefault();
+    if (!csvFile) {
+      alert("Please select a CSV file first!");
+      return;
+    }
+    const formData = new FormData();
+    formData.append('file', csvFile);
+
+    try {
+      const res = await axios.post(`${API}/students/import-csv`, formData, {
+        headers: {
+          ...headers,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      alert(`Import complete! Successfully added ${res.data.success} students. Errors: ${res.data.errors}`);
+      fetchStudents();
+      setShowCSVForm(false);
+      setCsvFile(null);
+    } catch (err) {
+      alert('Error importing CSV: ' + (err.response?.data?.error || err.message));
     }
   };
 
   return (
     <div>
-      <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
-        {showForm ? '✕ Cancel' : '+ Add Student'}
-      </button>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+        <button className="btn-primary" onClick={() => { setShowForm(!showForm); setShowCSVForm(false); }}>
+          {showForm ? '✕ Cancel' : '+ Add Student Manually'}
+        </button>
+        <button className="btn-primary" onClick={() => { setShowCSVForm(!showCSVForm); setShowForm(false); }}>
+          {showCSVForm ? '✕ Cancel' : '📁 Import from CSV'}
+        </button>
+      </div>
 
       {showForm && (
         <form className="form-card" onSubmit={handleAdd}>
@@ -204,6 +246,31 @@ const StudentsTab = ({ students, headers, fetchStudents, onCall }) => {
             </select>
           </div>
           <button type="submit" className="btn-primary">Save Student</button>
+        </form>
+      )}
+
+      {showCSVForm && (
+        <form className="form-card" onSubmit={handleCSVUpload}>
+          <h3>Bulk Import Students via CSV</h3>
+          <p style={{ fontSize: '14px', marginBottom: '15px', color: '#666' }}>
+            Upload a CSV file containing columns: <strong>name, roll_number, class, section, dob, parent_id</strong>
+          </p>
+          <div className="form-grid">
+            <input 
+              type="file" 
+              accept=".csv" 
+              onChange={e => setCsvFile(e.target.files[0])} 
+              required 
+              style={{
+                padding: '10px',
+                border: '1.5px dashed #ccc',
+                borderRadius: '8px',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+          <button type="submit" className="btn-primary" style={{ marginTop: '15px' }}>Upload CSV</button>
         </form>
       )}
 
@@ -241,9 +308,27 @@ const StudentsTab = ({ students, headers, fetchStudents, onCall }) => {
 
 // ── Attendance Tab ──
 const AttendanceTab = ({ students, headers }) => {
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const getLocalDate = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().split('T')[0];
+  };
+  const [date, setDate] = useState(getLocalDate());
   const [attendance, setAttendance] = useState({});
   const [message, setMessage] = useState('');
+
+  const fetchAttendanceByDate = async (selectedDate) => {
+    try {
+      const res = await axios.get(`${API}/attendance/date/${selectedDate}`, { headers });
+      setAttendance(res.data);
+    } catch (err) {
+      console.error('Failed to fetch attendance:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAttendanceByDate(date);
+  }, [date]);
 
   const handleMark = (studentId, status) => {
     setAttendance({ ...attendance, [studentId]: status });
@@ -305,7 +390,11 @@ const MarksTab = ({ students, headers }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/marks`, form, { headers });
+      const payload = { 
+        ...form, 
+        subject: form.subject.trim() 
+      };
+      await axios.post(`${API}/marks`, payload, { headers });
       setMessage('✅ Marks added successfully!');
       setTimeout(() => setMessage(''), 3000);
       setForm({ student_id: '', subject: '', exam_type: 'midterm', marks_obtained: '', max_marks: 100 });
@@ -553,7 +642,7 @@ const ChartsTab = ({ students, headers }) => {
   };
 
   const marksChartData = {
-    labels: marksData.map(m => m.subject),
+    labels: marksData.map(m => `${m.subject} (${m.exam_type})`),
     datasets: [{
       label: 'Marks Obtained',
       data: marksData.map(m => m.marks_obtained),
@@ -690,7 +779,9 @@ const ChartsTab = ({ students, headers }) => {
                     const grade = pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B+' : pct >= 60 ? 'B' : pct >= 50 ? 'C' : 'D';
                     return (
                       <tr key={i}>
-                        <td>{m.subject}</td>
+                        <td style={{ textTransform: 'capitalize' }}>
+                          {m.subject} <span style={{ fontSize: '10px', color: '#888', fontWeight: 'normal' }}>({m.exam_type})</span>
+                        </td>
                         <td>{m.marks_obtained}</td>
                         <td>{m.max_marks}</td>
                         <td>

@@ -52,3 +52,22 @@ exports.getAttendancePercentage = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// Get attendance for all students by date (Teacher Dashboard use)
+exports.getAttendanceByDate = async (req, res) => {
+  const { date } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT student_id, status FROM attendance WHERE date = $1`,
+      [date]
+    );
+    // Convert to object { student_id: status } for easier frontend use
+    const attendanceMap = {};
+    result.rows.forEach(row => {
+      attendanceMap[row.student_id] = row.status;
+    });
+    res.json(attendanceMap);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

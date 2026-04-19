@@ -13,14 +13,25 @@ const calculateGrade = (percentage) => {
 
 // Add marks
 exports.addMarks = async (req, res) => {
-  const { student_id, subject, exam_type, marks_obtained, max_marks } = req.body;
+  let { student_id, subject, exam_type, marks_obtained, max_marks } = req.body;
+  // Case-insensitive normalization
+  subject = subject.trim().toLowerCase();
+  exam_type = (exam_type || 'midterm').toLowerCase();
+
   try {
     const result = await pool.query(
       `INSERT INTO marks (student_id, subject, exam_type, marks_obtained, max_marks, entered_by)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (student_id, subject, exam_type) 
+       DO UPDATE SET 
+         marks_obtained = $4,
+         max_marks = $5,
+         entered_by = $6,
+         created_at = NOW()
+       RETURNING *`,
       [student_id, subject, exam_type, marks_obtained, max_marks, req.user.id]
     );
-    res.status(201).json({ message: 'Marks added!', marks: result.rows[0] });
+    res.status(201).json({ message: 'Marks updated successfully!', marks: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

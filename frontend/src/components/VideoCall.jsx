@@ -59,6 +59,8 @@ const VideoCall = ({ currentUser, isCaller, targetUserId, targetName, peerSocket
         }
       } catch (err) {
         console.error('Error starting media:', err);
+        alert('Could not access camera or microphone. Please ensure you have granted permissions and have a working camera/microphone connected.');
+        onClose(); // Close the modal since we can't make the call
       }
     };
 

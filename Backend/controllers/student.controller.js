@@ -1,6 +1,13 @@
 const pool = require('../config/db');
+const multer = require('multer');
+const csv = require('csv-parser');
+const fs = require('fs');
 
-// Get all students
+// Multer
+const upload = multer({ dest: 'uploads/' });
+exports.upload = upload;
+
+// GET ALL STUDENTS
 exports.getAllStudents = async (req, res) => {
   try {
     const result = await pool.query(
@@ -12,7 +19,7 @@ exports.getAllStudents = async (req, res) => {
   }
 };
 
-// Get all parents
+// GET ALL PARENTS
 exports.getAllParents = async (req, res) => {
   try {
     const result = await pool.query(
@@ -24,7 +31,7 @@ exports.getAllParents = async (req, res) => {
   }
 };
 
-// Get single student
+// GET SINGLE STUDENT
 exports.getStudentById = async (req, res) => {
   try {
     const result = await pool.query(
@@ -39,7 +46,7 @@ exports.getStudentById = async (req, res) => {
   }
 };
 
-// Create student
+// CREATE STUDENT
 exports.createStudent = async (req, res) => {
   const { name, roll_number, class: cls, section, dob, parent_id } = req.body;
   try {
@@ -54,7 +61,7 @@ exports.createStudent = async (req, res) => {
   }
 };
 
-// Update student
+// UPDATE STUDENT
 exports.updateStudent = async (req, res) => {
   const { name, roll_number, class: cls, section, dob } = req.body;
   try {
@@ -71,17 +78,83 @@ exports.updateStudent = async (req, res) => {
   }
 };
 
-// Delete student
+// DELETE STUDENT
 exports.deleteStudent = async (req, res) => {
   try {
+    const studentId = req.params.id;
+    
+    // First, delete any dependent records in other tables to avoid Foreign Key constraint errors 
+    await pool.query('DELETE FROM attendance WHERE student_id = $1', [studentId]);
+    await pool.query('DELETE FROM marks WHERE student_id = $1', [studentId]);
+    await pool.query('DELETE FROM remarks WHERE student_id = $1', [studentId]);
+
+    // Finally, delete the student
     const result = await pool.query(
       'DELETE FROM students WHERE id=$1 RETURNING *',
-      [req.params.id]
+      [studentId]
     );
     if (result.rows.length === 0)
       return res.status(404).json({ error: 'Student not found' });
-    res.json({ message: 'Student deleted!' });
+    res.json({ message: 'Student and related records deleted successfully!' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+};
+
+// IMPORT FROM CSV
+exports.importFromCSV = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  const students = [];
+
+  fs.createReadStream(req.file.path)
+    .pipe(csv())
+    .on('data', (row) => {
+      students.push(row);
+    })
+    .on('end', async () => {
+      let successCount = 0;
+      let errorCount = 0;
+
+      try {
+        for (const student of students) {
+          try {
+            await pool.query(
+              `INSERT INTO students (name, roll_number, class, section, dob, parent_id)
+               VALUES ($1,$2,$3,$4,$5,$6)
+               ON CONFLICT (roll_number) DO NOTHING`,
+              [
+                student.name,
+                student.roll_number,
+                student.class,
+                student.section,
+                student.dob || null,
+                student.parent_id || null
+              ]
+            );
+            successCount++;
+          } catch (err) {
+            errorCount++;
+          }
+        }
+
+        // delete file after processing
+        fs.unlinkSync(req.file.path);
+
+        res.status(201).json({
+          message: 'Import complete!',
+          success: successCount,
+          errors: errorCount,
+          total: students.length
+        });
+
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
+    })
+    .on('error', (err) => {
+      res.status(500).json({ error: err.message });
+    });
 };

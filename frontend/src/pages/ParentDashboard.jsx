@@ -92,7 +92,7 @@ const ParentDashboard = () => {
     };
   }, []);
 
-  // ✅ FIXED — sirf state set karo, JSX yahan nahi
+  // FIXED — sirf state set karo, JSX yahan nahi
   const handleAccept = () => {
     setActiveCall({
       fromSocketId: incomingCall.fromSocketId,
