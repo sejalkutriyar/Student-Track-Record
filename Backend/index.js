@@ -137,7 +137,8 @@ const initializeDB = async () => {
         marks_obtained INT,
         max_marks INT,
         entered_by INT REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT NOW(),
+        CONSTRAINT marks_unique_idx UNIQUE (student_id, subject, exam_type)
       );
 
       CREATE TABLE IF NOT EXISTS remarks (
@@ -149,6 +150,14 @@ const initializeDB = async () => {
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
+    
+    // Fix existing table constraint just in case it was created without it
+    try {
+      await pool.query(`ALTER TABLE marks ADD CONSTRAINT marks_unique_idx UNIQUE (student_id, subject, exam_type);`);
+    } catch (e) {
+      // Ignore if constraint already exists
+    }
+
     console.log('✅ Database tables verified/created successfully!');
   } catch (err) {
     console.error('❌ Database initialization failed:', err);
