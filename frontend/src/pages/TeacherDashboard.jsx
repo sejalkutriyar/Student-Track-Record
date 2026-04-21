@@ -8,13 +8,13 @@ import { Bar, Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
 ChartJS.register( CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend );
 
+// const API = 'http://localhost:5000/api';
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const TeacherDashboard = () => {
   const [students, setStudents] = useState([]);
   const [activeCall, setActiveCall] = useState(null);
   const [activeTab, setActiveTab] = useState('students');
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const user = JSON.parse(localStorage.getItem('user'));
@@ -22,18 +22,17 @@ const TeacherDashboard = () => {
   const headers = { Authorization: `Bearer ${token}` };
 
   const fetchStudents = async () => {
-    setLoading(true);
     try {
       const res = await axios.get(`${API}/students`, { headers });
       setStudents(res.data);
     } catch (err) {
       console.error(err);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
     fetchStudents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -54,6 +53,7 @@ const TeacherDashboard = () => {
     return () => {
       socket.off('connect', onConnect);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleLogout = () => {
@@ -139,6 +139,7 @@ const StudentsTab = ({ students, headers, fetchStudents, onCall }) => {
   const [form, setForm] = useState({ name: '', roll_number: '', class: '', section: '', dob: '', parent_id: '' });
   const [showForm, setShowForm] = useState(false);
   const [showCSVForm, setShowCSVForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [csvFile, setCsvFile] = useState(null);
   const [parents, setParents] = useState([]);
 
@@ -229,15 +230,6 @@ const StudentsTab = ({ students, headers, fetchStudents, onCall }) => {
               value={form.parent_id} 
               onChange={e => setForm({ ...form, parent_id: e.target.value })}
               required
-              style={{
-                padding: '10px 14px',
-                border: '1.5px solid #e0e0e0',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontFamily: 'inherit',
-                outline: 'none',
-                backgroundColor: '#fff'
-              }}
             >
               <option value="">-- Choose Parent --</option>
               {parents.map(p => (
@@ -252,8 +244,8 @@ const StudentsTab = ({ students, headers, fetchStudents, onCall }) => {
       {showCSVForm && (
         <form className="form-card" onSubmit={handleCSVUpload}>
           <h3>Bulk Import Students via CSV</h3>
-          <p style={{ fontSize: '14px', marginBottom: '15px', color: '#666' }}>
-            Upload a CSV file containing columns: <strong>name, roll_number, class, section, dob, parent_id</strong>
+          <p style={{ fontSize: '14px', marginBottom: '15px', color: '#94a3b8' }}>
+            Upload a CSV file containing columns: <strong>name, roll_number, class, section, dob, parent_email</strong>
           </p>
           <div className="form-grid">
             <input 
@@ -275,6 +267,24 @@ const StudentsTab = ({ students, headers, fetchStudents, onCall }) => {
       )}
 
       <div className="table-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h3 style={{ margin: 0 }}>Student List</h3>
+          <input 
+            type="text" 
+            placeholder="🔍 Search by Name or Roll No..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{
+              padding: '10px 16px',
+              borderRadius: '20px',
+              border: '1px solid rgba(255,255,255,0.1)',
+              background: '#0b1120',
+              color: '#fff',
+              width: '250px',
+              outline: 'none'
+            }}
+          />
+        </div>
         <table className="data-table">
           <thead>
             <tr>
@@ -282,7 +292,9 @@ const StudentsTab = ({ students, headers, fetchStudents, onCall }) => {
             </tr>
           </thead>
           <tbody>
-            {students.map(s => (
+            {students
+              .filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.roll_number.toLowerCase().includes(searchTerm.toLowerCase()))
+              .map(s => (
               <tr key={s.id}>
                 <td>{s.name}</td>
                 <td>{s.roll_number}</td>
@@ -328,6 +340,7 @@ const AttendanceTab = ({ students, headers }) => {
 
   useEffect(() => {
     fetchAttendanceByDate(date);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date]);
 
   const handleMark = (studentId, status) => {

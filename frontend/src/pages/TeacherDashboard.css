@@ -348,3 +348,58 @@ textarea {
   display: flex;
   align-items: center;
 }
+
+/* Mobile Responsive Design */
+@media (max-width: 768px) {
+  .dashboard-container {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    padding: 16px;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    z-index: 10;
+  }
+  .sidebar-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+  }
+  .nav-item {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  .sidebar-footer {
+    display: none; /* Hide footer on mobile to save space */
+  }
+  .main-content {
+    margin-left: 0;
+    padding: 16px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .form-grid {
+    grid-template-columns: 1fr; /* Stack inputs vertically */
+  }
+  .form-grid input, .form-grid select, select {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .table-card {
+    padding: 16px;
+    overflow-x: auto; /* Allow horizontal scroll for table */
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .data-table {
+    min-width: 600px; /* Prevent table columns from squishing */
+  }
+  .date-selector {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

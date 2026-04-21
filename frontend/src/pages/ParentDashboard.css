@@ -205,3 +205,54 @@
 .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(32, 227, 178, 0.5); }
 
 .empty-state { text-align: center; padding: 80px; color: #64748b; font-size: 16px; font-weight: 500; }
+
+/* Mobile Responsive Design */
+@media (max-width: 768px) {
+  .parent-container {
+    flex-direction: column;
+  }
+  .parent-sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    padding: 16px;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    z-index: 10;
+  }
+  .sidebar-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+  }
+  .nav-item {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  .sidebar-footer {
+    display: none; /* Hide footer on mobile to save space */
+  }
+  .parent-main {
+    margin-left: 0;
+    padding: 16px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .stats-grid {
+    grid-template-columns: 1fr 1fr; /* 2 cards per row on mobile instead of 4 */
+    gap: 12px;
+  }
+  .info-card {
+    padding: 16px;
+    overflow-x: auto; /* Allow horizontal scroll for table */
+  }
+  .data-table {
+    min-width: 500px; /* Prevent table columns from squishing */
+  }
+  .parent-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}

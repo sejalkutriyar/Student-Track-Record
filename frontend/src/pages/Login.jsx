@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import './Login.css';
 
+// const API = 'http://localhost:5000/api';
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const Login = () => {
@@ -32,7 +33,7 @@ const Login = () => {
         else if (res.data.user.role === 'parent') navigate('/parent');
       } else {
         // Register Flow
-        const res = await axios.post(`${API}/auth/register`, { name, email, password, role });
+        await axios.post(`${API}/auth/register`, { name, email, password, role });
         setSuccessMsg('Account created successfully! You can now sign in.');
         setIsLogin(true); // Switch to login screen
         setPassword('');

@@ -6,6 +6,7 @@ import IncomingCall from '../components/IncomingCall';
 import VideoCall from '../components/VideoCall';
 import './ParentDashboard.css';
 
+// const API = 'http://localhost:5000/api';
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const ParentDashboard = () => {
@@ -13,6 +14,7 @@ const ParentDashboard = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [attendance, setAttendance] = useState(null);
   const [marks, setMarks] = useState([]);
+  const [remarks, setRemarks] = useState([]);
   const [gpa, setGpa] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [incomingCall, setIncomingCall] = useState(null);
@@ -53,6 +55,13 @@ const ParentDashboard = () => {
     }
 
     try {
+      const remarksRes = await axios.get(`${API}/remarks/${studentId}`, { headers });
+      setRemarks(remarksRes.data);
+    } catch (err) {
+      console.log('Remarks not found');
+    }
+
+    try {
       const gpaRes = await axios.get(`${API}/marks/${studentId}/gpa?exam_type=midterm`, { headers });
       setGpa(gpaRes.data);
     } catch (err) {
@@ -62,6 +71,7 @@ const ParentDashboard = () => {
 
   useEffect(() => {
     fetchStudents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -90,6 +100,7 @@ const ParentDashboard = () => {
       socket.off('connect', onConnect);
       socket.off('call:incoming', onCallIncoming);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // FIXED — sirf state set karo, JSX yahan nahi
@@ -166,6 +177,7 @@ const ParentDashboard = () => {
           <button className={activeTab === 'overview' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('overview')}>🏠 Overview</button>
           <button className={activeTab === 'attendance' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('attendance')}>📋 Attendance</button>
           <button className={activeTab === 'marks' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('marks')}>📊 Marks</button>
+          <button className={activeTab === 'remarks' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('remarks')}>📝 Teacher Remarks</button>
           <button className={activeTab === 'report' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('report')}>📄 Report Card</button>
         </nav>
         <div className="sidebar-footer">
@@ -182,12 +194,34 @@ const ParentDashboard = () => {
             {activeTab === 'overview' && '🏠 Overview'}
             {activeTab === 'attendance' && '📋 Attendance'}
             {activeTab === 'marks' && '📊 Marks'}
+            {activeTab === 'remarks' && '📝 Teacher Remarks'}
             {activeTab === 'report' && '📄 Report Card'}
           </h1>
-          {selectedStudent && (
-            <div className="student-badge">
-              👤 {selectedStudent.name} · Class {selectedStudent.class}-{selectedStudent.section}
-            </div>
+          {students.length > 0 && (
+            <select 
+              className="student-badge"
+              style={{
+                background: '#111827',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.1)',
+                padding: '8px 16px',
+                borderRadius: '20px',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+              value={selectedStudent?.id || ''}
+              onChange={(e) => {
+                const s = students.find(x => x.id === parseInt(e.target.value));
+                setSelectedStudent(s);
+                fetchStudentData(s.id);
+              }}
+            >
+              {students.map(s => (
+                <option key={s.id} value={s.id}>
+                  👤 {s.name} (Class {s.class}-{s.section})
+                </option>
+              ))}
+            </select>
           )}
         </div>
 
@@ -289,6 +323,49 @@ const ParentDashboard = () => {
                 <span>GPA: <strong>{gpa.gpa}</strong></span>
                 <span>Grade: <strong>{gpa.grade}</strong></span>
                 <span>Overall: <strong>{gpa.overall_percentage}%</strong></span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'remarks' && (
+          <div className="info-card">
+            <h3>Teacher Remarks</h3>
+            {remarks.length === 0 ? (
+              <p style={{ color: '#888' }}>No remarks found for {selectedStudent?.name}.</p>
+            ) : (
+              <div>
+                {remarks.map(r => (
+                  <div key={r.id} style={{
+                    padding: '14px 16px',
+                    borderBottom: '1px solid rgba(255,255,255,0.05)',
+                    marginBottom: '8px',
+                    background: 'rgba(255,255,255,0.02)',
+                    borderRadius: '8px'
+                  }}>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
+                      <span style={{
+                        fontSize: '11px',
+                        padding: '3px 10px',
+                        borderRadius: '20px',
+                        background: r.remark_type === 'achievement' ? 'rgba(56, 161, 105, 0.2)' :
+                                    r.remark_type === 'behavioral' ? 'rgba(229, 62, 62, 0.2)' : 'rgba(102, 126, 234, 0.2)',
+                        color: r.remark_type === 'achievement' ? '#38a169' :
+                               r.remark_type === 'behavioral' ? '#fc8181' : '#90cdf4'
+                      }}>
+                        {r.remark_type === 'achievement' ? '🏆' :
+                         r.remark_type === 'behavioral' ? '⚠️' : '📚'} {r.remark_type}
+                      </span>
+                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                        {new Date(r.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '15px', color: '#f8fafc', marginBottom: '8px' }}>{r.remark_text}</div>
+                    <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+                      Given By: <strong>{r.teacher_name}</strong>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

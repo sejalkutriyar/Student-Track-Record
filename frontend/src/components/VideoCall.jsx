@@ -135,6 +135,7 @@ const VideoCall = ({ currentUser, isCaller, targetUserId, targetName, peerSocket
 
       endCallCleanly();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCaller, targetUserId, initialPeerSocketId]);
 
   const endCallCleanly = () => {

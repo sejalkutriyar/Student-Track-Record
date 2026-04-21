@@ -110,7 +110,10 @@ exports.importFromCSV = async (req, res) => {
   const students = [];
 
   fs.createReadStream(req.file.path)
-    .pipe(csv())
+    .pipe(csv({
+      mapHeaders: ({ header }) => header.trim(),
+      mapValues: ({ value }) => typeof value === 'string' ? value.trim() : value
+    }))
     .on('data', (row) => {
       students.push(row);
     })
@@ -121,17 +124,35 @@ exports.importFromCSV = async (req, res) => {
       try {
         for (const student of students) {
           try {
+            let parent_id = student.parent_id || null;
+            
+            // Smart feature: Automatically find parent_id using parent_email from CSV
+            if (!parent_id && student.parent_email) {
+              const parentRes = await pool.query(
+                "SELECT id FROM users WHERE email = $1 AND role = 'parent'", 
+                [student.parent_email.trim()]
+              );
+              if (parentRes.rows.length > 0) {
+                parent_id = parentRes.rows[0].id;
+              }
+            }
+
             await pool.query(
               `INSERT INTO students (name, roll_number, class, section, dob, parent_id)
                VALUES ($1,$2,$3,$4,$5,$6)
-               ON CONFLICT (roll_number) DO NOTHING`,
+               ON CONFLICT (roll_number) 
+               DO UPDATE SET 
+                  name = EXCLUDED.name,
+                  class = EXCLUDED.class,
+                  section = EXCLUDED.section,
+                  parent_id = EXCLUDED.parent_id`,
               [
                 student.name,
                 student.roll_number,
                 student.class,
                 student.section,
                 student.dob || null,
-                student.parent_id || null
+                parent_id
               ]
             );
             successCount++;
