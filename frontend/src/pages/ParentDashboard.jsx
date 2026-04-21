@@ -30,10 +30,13 @@ const ParentDashboard = () => {
       const res = await axios.get(`${API}/students`, { headers });
       const myStudents = res.data.filter(s => s.parent_id === user.id);
       setStudents(myStudents);
-      if (myStudents.length > 0) {
-        setSelectedStudent(myStudents[0]);
-        fetchStudentData(myStudents[0].id);
-      }
+      setStudents(currentStudents => {
+        if (myStudents.length > 0 && (!selectedStudent || !myStudents.find(s => s.id === selectedStudent.id))) {
+          setSelectedStudent(myStudents[0]);
+          fetchStudentData(myStudents[0].id);
+        }
+        return myStudents;
+      });
     } catch (err) {
       console.error(err);
     }
@@ -70,9 +73,22 @@ const ParentDashboard = () => {
   };
 
   useEffect(() => {
+    if (selectedStudent) {
+      fetchStudentData(selectedStudent.id);
+    }
+  }, [selectedStudent]);
+
+  useEffect(() => {
     fetchStudents();
+    const interval = setInterval(() => {
+      fetchStudents();
+      if (selectedStudent) {
+        fetchStudentData(selectedStudent.id);
+      }
+    }, 5000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedStudent]);
 
   useEffect(() => {
     if (!user) return;

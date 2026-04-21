@@ -32,6 +32,8 @@ const TeacherDashboard = () => {
 
   useEffect(() => {
     fetchStudents();
+    const interval = setInterval(fetchStudents, 5000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -153,7 +155,10 @@ const StudentsTab = ({ students, headers, fetchStudents, onCall }) => {
       }
     };
     fetchParents();
-  }, [headers]);
+    const interval = setInterval(fetchParents, 5000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAdd = async (e) => {
     e.preventDefault();
