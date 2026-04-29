@@ -119,7 +119,7 @@ const ParentDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // FIXED — sirf state set karo, JSX yahan nahi
+
   const handleAccept = () => {
     setActiveCall({
       fromSocketId: incomingCall.fromSocketId,
