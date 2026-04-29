@@ -123,7 +123,3 @@ Record_System/
 ├── docker-compose.yml       # Docker orchestration
 └── README.md
 ```
-
----
-
-*Built with ❤️ by Sejal Kumari*
