@@ -165,7 +165,7 @@ const ParentDashboard = () => {
   return (
     <div className="parent-container">
 
-      {/* ✅ VideoCall — accept ke baad dikhega */}
+      {/*  VideoCall */}
       {activeCall && (
         <VideoCall
           currentUser={user}

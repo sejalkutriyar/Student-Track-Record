@@ -3,7 +3,7 @@ const pool = require('../config/db');
 
 exports.checkAndSendAlerts = async (student_id) => {
   try {
-    // Attendance % calculate karo
+    // Attendance % calculate
     const result = await pool.query(
       `SELECT 
         ROUND(
@@ -15,9 +15,9 @@ exports.checkAndSendAlerts = async (student_id) => {
 
     const percentage = parseFloat(result.rows[0].percentage);
 
-    // 75% se neeche hai to alert bhejo
+    // send alert if less than 75 %
     if (percentage < 75) {
-      // Student aur parent info fetch karo
+      // Student and parent info fetch
       const studentResult = await pool.query(
         `SELECT s.name as student_name, u.email as parent_email, u.name as parent_name
          FROM students s
@@ -28,7 +28,7 @@ exports.checkAndSendAlerts = async (student_id) => {
 
       const { student_name, parent_email, parent_name } = studentResult.rows[0];
 
-      // Email bhejo
+      // send mail
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: parent_email,
