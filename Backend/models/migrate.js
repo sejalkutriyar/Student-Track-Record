@@ -52,11 +52,13 @@ const createTables = async () => {
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
-    console.log('✅ All tables created!');
-    process.exit();
+    
+    console.log('All tables created successfully!');
   } catch (err) {
-    console.error('❌ Migration failed:', err);
-    process.exit(1);
+    console.error('Migration failed:', err);
+    process.exitCode = 1;
+  } finally {
+    await pool.end();
   }
 };
 
