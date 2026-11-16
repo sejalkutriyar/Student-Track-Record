@@ -1,3 +1,4 @@
+
 const pool = require('../config/db');
 
 const createTables = async () => {
@@ -29,7 +30,8 @@ const createTables = async () => {
         date DATE NOT NULL,
         status VARCHAR(10) CHECK (status IN ('present','absent','holiday')),
         marked_by INT REFERENCES users(id),
-        CONSTRAINT attendance_student_date_unique UNIQUE (student_id, date)
+        CONSTRAINT attendance_student_date_unique
+          UNIQUE (student_id, date)
       );
 
       CREATE TABLE IF NOT EXISTS marks (
@@ -40,7 +42,9 @@ const createTables = async () => {
         marks_obtained INT,
         max_marks INT,
         entered_by INT REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT NOW(),
+        CONSTRAINT marks_unique_idx
+          UNIQUE (student_id, subject, exam_type)
       );
 
       CREATE TABLE IF NOT EXISTS remarks (
@@ -48,11 +52,29 @@ const createTables = async () => {
         student_id INT REFERENCES students(id) ON DELETE CASCADE,
         teacher_id INT REFERENCES users(id),
         remark_text TEXT NOT NULL,
-        remark_type VARCHAR(20) CHECK (remark_type IN ('behavioral', 'academic', 'achievement')),
+        remark_type VARCHAR(20)
+          CHECK (remark_type IN ('behavioral', 'academic', 'achievement')),
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
-    
+
+    // Ensure constraint exists on an already-created marks table
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'marks_unique_idx'
+        ) THEN
+          ALTER TABLE marks
+          ADD CONSTRAINT marks_unique_idx
+          UNIQUE (student_id, subject, exam_type);
+        END IF;
+      END
+      $$;
+    `);
+
     console.log('All tables created successfully!');
   } catch (err) {
     console.error('Migration failed:', err);
